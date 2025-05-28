@@ -1,0 +1,139 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html>
+<head>
+    <title>Scripts - Client Meeting Tracker</title>
+    <style>
+        body {
+            background-color: #E6EBF5;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            max-width: 100%;
+            height: auto;
+        }
+        .logo-fallback {
+            background-color: white;
+            color: #1a2a44;
+            font-size: 20pt;
+            font-weight: bold;
+            padding: 10px;
+            display: inline-block;
+        }
+        .button-bar {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .button {
+            background-color: #4A4A4A;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-size: 12pt;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #3a5a88;
+        }
+        .output-container {
+            background-color: white;
+            border: 1px solid #5a5a5a;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .output-container h3 {
+            color: #4A4A4A;
+            font-size: 14pt;
+            margin-top: 0;
+        }
+        .output-container pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 12pt;
+            color: #4A4A4A;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='company_logo.png') }}" alt="Company Logo" class="logo" 
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+        <span class="logo-fallback" style="display: none;">Client Meeting Tracker</span>
+    </div>
+    <div class="button-bar">
+        <a href="{{ url_for('index') }}" class="button">Back to Home</a>
+        <a href="{{ url_for('run_script', script='admin_creation') }}" class="button">Admin Creation</a>
+        <a href="{{ url_for('run_script', script='flush_dns') }}" class="button">Flush DNS</a>
+        <a href="{{ url_for('run_script', script='ip_config') }}" class="button">IP Configuration</a>
+        <a href="{{ url_for('run_script', script='clear_temp') }}" class="button">Clear Temp Files</a>
+        <a href="{{ url_for('run_script', script='disk_space') }}" class="button">Disk Space</a>
+        <a href="{{ url_for('run_script', script='group_policy_update') }}" class="button">Group Policy Update</a>
+        <a href="{{ url_for('run_script', script='restart_print_spooler') }}" class="button">Restart Print Spooler</a>
+        <a href="{{ url_for('run_script', script='check_windows_updates') }}" class="button">Check Windows Updates</a>
+        <a href="{{ url_for('run_script', script='disable_windows_firewall') }}" class="button">Disable Windows Firewall</a>
+        <a href="{{ url_for('run_script', script='m365_install') }}" class="button">M365 Install</a>
+    </div>
+    <div class="output-container">
+        <h3>Script Output</h3>
+        {% if output %}
+            <pre>{{ output }}</pre>
+        {% else %}
+            <p>Run a script to see the output here.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

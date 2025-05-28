@@ -1,0 +1,131 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Client</title>
+    <style>
+        body {
+            background-color: #E6EBF5;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .form-container {
+            background-color: white;
+            border: 1px solid #5a5a5a;
+            border-radius: 5px;
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            color: #4A4A4A;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="date"], select {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+            background-color: #4A4A4A;
+            color: white;
+            border: 1px solid #5a5a5a;
+            border-radius: 5px;
+            font-size: 12pt;
+        }
+        input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        .button {
+            background-color: #4A4A4A;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-size: 12pt;
+            cursor: pointer;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #3a5a88;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Edit Client: {{ client.name }}</h2>
+        <form method="POST">
+            <label for="name">Client Name:</label>
+            <input type="text" id="name" name="name" value="{{ client.name }}" required>
+            
+            <label>Services:</label>
+            {% for service in ["Managed IT", "DataCenter", "Datto SaaS", "Datto File Protect", "3CX", "Datto DFP", "Veeam Backups", "M365", "Google", "InfoSec LCS", "InfoSec Axiom"] %}
+                <label><input type="checkbox" name="{{ service }}" {% if service in client.services %}checked{% endif %}> {{ service }}</label>
+            {% endfor %}
+
+            <label for="tam_freq">TAM Frequency:</label>
+            <select id="tam_freq" name="tam_freq" required>
+                <option value="Monthly" {% if client.meetings[0].frequency == "Monthly" %}selected{% endif %}>Monthly</option>
+                <option value="Quarterly" {% if client.meetings[0].frequency == "Quarterly" %}selected{% endif %}>Quarterly</option>
+                <option value="Semi-Annually" {% if client.meetings[0].frequency == "Semi-Annually" %}selected{% endif %}>Semi-Annually</option>
+            </select>
+
+            <label for="tam_last">Last TAM Meeting:</label>
+            <input type="date" id="tam_last" name="tam_last" value="{{ client.meetings[0].lastMeetingDate }}" required>
+
+            <label for="vcio_freq">vCIO Frequency:</label>
+            <select id="vcio_freq" name="vcio_freq" required>
+                <option value="Monthly" {% if client.meetings[1].frequency == "Monthly" %}selected{% endif %}>Monthly</option>
+                <option value="Quarterly" {% if client.meetings[1].frequency == "Quarterly" %}selected{% endif %}>Quarterly</option>
+                <option value="Semi-Annually" {% if client.meetings[1].frequency == "Semi-Annually" %}selected{% endif %}>Semi-Annually</option>
+            </select>
+
+            <label for="vcio_last">Last vCIO Meeting:</label>
+            <input type="date" id="vcio_last" name="vcio_last" value="{{ client.meetings[1].lastMeetingDate }}" required>
+
+            <button type="submit" class="button">Save</button>
+            <a href="{{ url_for('index', client_id=client.id) }}" class="button">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>

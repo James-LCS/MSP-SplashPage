@@ -1,0 +1,278 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html>
+<head>
+    <title>Client Meeting Tracker</title>
+    <style>
+        body {
+            background-color: #E6EBF5;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            max-width: 100%;
+            height: auto;
+        }
+        .logo-fallback {
+            background-color: white;
+            color: #1a2a44;
+            font-size: 20pt;
+            font-weight: bold;
+            padding: 10px;
+            display: inline-block;
+        }
+        .button-bar {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .left-panel, .right-panel {
+            background-color: white;
+            border: 1px solid #5a5a5a;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .left-panel {
+            width: 25%;
+        }
+        .right-panel {
+            width: 75%;
+        }
+        select {
+            width: 100%;
+            padding: 5px;
+            background-color: #4A4A4A;
+            color: white;
+            border: 1px solid #5a5a5a;
+            border-radius: 5px;
+            font-size: 12pt;
+        }
+        .status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .status-label {
+            color: red;
+            font-size: 10pt;
+        }
+        .toggle-button {
+            background-color: #4A4A4A;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .toggle-button:hover {
+            background-color: #3a5a88;
+        }
+        .overdue-list {
+            list-style: none;
+            padding: 0;
+            margin: 5px 0 0 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .overdue-list li {
+            padding: 5px 0;
+        }
+        .overdue-list li a {
+            color: red;
+            text-decoration: none;
+        }
+        .overdue-list li a:hover {
+            text-decoration: underline;
+        }
+        .client-details h2 {
+            color: #4A4A4A;
+            font-size: 16pt;
+            font-weight: bold;
+        }
+        .client-details h3 {
+            color: #4A4A4A;
+            font-size: 12pt;
+            font-weight: bold;
+        }
+        .client-details p {
+            margin: 5px 0;
+            font-size: 10pt;
+        }
+        .client-details .service {
+            color: #4A4A4A;
+        }
+        .client-details .service.active {
+            color: green;
+        }
+        .client-details .service.inactive {
+            color: red;
+        }
+        .client-details .status {
+            color: #4A4A4A;
+        }
+        .client-details .status.overdue {
+            color: red;
+        }
+        .client-details .status.due-soon {
+            color: orange;
+        }
+        .client-details .status.upcoming {
+            color: green;
+        }
+        .button {
+            background-color: #4A4A4A;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-size: 12pt;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        .button:hover {
+            background-color: #3a5a88;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='company_logo.png') }}" alt="Company Logo" class="logo" 
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+        <span class="logo-fallback" style="display: none;">Client Meeting Tracker</span>
+    </div>
+    <div class="button-bar">
+        <a href="https://wearelifeline.itglue.com/" target="_blank" class="button">IT Glue</a>
+        <a href="https://manage.wearelifeline.com/" target="_blank" class="button">ConnectWise Manage</a>
+        <a href="https://automate.wearelifeline.com/automate/login" target="_blank" class="button">ConnectWise Automate</a>
+        <a href="https://login.live.myitprocess.com/login" target="_blank" class="button">myITprocess</a>
+        <a href="https://app.smartsheet.com/b/home" target="_blank" class="button">SmartSheets</a>
+        <a href="https://app.scalepad.com/account/home" target="_blank" class="button">ScalePad</a>
+        <a href="https://auth.datto.com/login" target="_blank" class="button">Datto</a>
+        <a href="https://bbsitimenet.centralservers.com/Login.aspx" target="_blank" class="button">BBSI TimeNet</a>
+        <a href="https://wearelifeline.com/" target="_blank" class="button">wearelifeline.com</a>
+        <a href="{{ url_for('scripts') }}" class="button">Scripts</a>
+    </div>
+    <div class="container">
+        <div class="left-panel">
+            <select onchange="window.location.href='/?client_id=' + this.value">
+                <option value="">Select a client</option>
+                {% for client in clients %}
+                    <option value="{{ client.id }}" {% if selected_client and selected_client.id == client.id %}selected{% endif %}>
+                        {{ client.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="status">
+                <span class="status-label">{{ overdue_count }} clients have upcoming or overdue meetings</span>
+                <button class="toggle-button" onclick="toggleOverdueList()">▼</button>
+            </div>
+            <ul id="overdueList" class="overdue-list" style="display: none;">
+                {% if overdue_clients %}
+                    {% for client in overdue_clients %}
+                        <li><a href="/?client_id={{ client.id }}">{{ client.name }}</a></li>
+                    {% endfor %}
+                {% else %}
+                    <li>No overdue meetings</li>
+                {% endif %}
+            </ul>
+        </div>
+        <div class="right-panel client-details">
+            {% if selected_client %}
+                <h2>Client: {{ selected_client.name }}</h2>
+                <h3>Services:</h3>
+                {% for service in ["Managed IT", "DataCenter", "Datto SaaS", "Datto File Protect", "3CX", "Datto DFP", "Veeam Backups", "M365", "Google", "InfoSec LCS", "InfoSec Axiom"] %}
+                    <p class="service {% if service in selected_client.services %}active{% else %}inactive{% endif %}">
+                        - {{ service }}
+                    </p>
+                {% endfor %}
+                <h3>TAM Meeting</h3>
+                <p>Frequency: {{ selected_client.meetings[0].frequency }}</p>
+                <p>Last Meeting: {{ selected_client.meetings[0].lastMeetingDate }}</p>
+                <p class="status {{ selected_client.meetings[0].status_class }}">
+                    Next Due: {{ selected_client.meetings[0].nextMeetingDueDate }} ({{ selected_client.meetings[0].status_text }})
+                </p>
+                <a href="{{ url_for('mark_meeting_done', client_id=selected_client.id, meeting_type='TAM') }}" class="button">Mark as Done</a>
+                <h3>vCIO Meeting</h3>
+                <p>Frequency: {{ selected_client.meetings[1].frequency }}</p>
+                <p>Last Meeting: {{ selected_client.meetings[1].lastMeetingDate }}</p>
+                <p class="status {{ selected_client.meetings[1].status_class }}">
+                    Next Due: {{ selected_client.meetings[1].nextMeetingDueDate }} ({{ selected_client.meetings[1].status_text }})
+                </p>
+                <a href="{{ url_for('mark_meeting_done', client_id=selected_client.id, meeting_type='vCIO') }}" class="button">Mark as Done</a>
+                <div>
+                    <a href="{{ url_for('add_client') }}" class="button">Add New Client</a>
+                    <a href="{{ url_for('edit_client', client_id=selected_client.id) }}" class="button">Edit Client</a>
+                </div>
+            {% else %}
+                <p>Select a client to view details</p>
+                <a href="{{ url_for('add_client') }}" class="button">Add New Client</a>
+            {% endif %}
+        </div>
+    </div>
+    <script>
+        function toggleOverdueList() {
+            const list = document.getElementById("overdueList");
+            const button = document.querySelector(".toggle-button");
+            if (list.style.display === "none") {
+                list.style.display = "block";
+                button.textContent = "▲";
+            } else {
+                list.style.display = "none";
+                button.textContent = "▼";
+            }
+        }
+    </script>
+</body>
+</html>
